@@ -1,0 +1,163 @@
+name: Build Desktop (macOS DMG & Windows Installer)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 安装指定版本 Flutter（与你本地保持一致）
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.38.3"
+          cache: true
+
+      - name: Flutter doctor (optional)
+        run: flutter doctor -v
+
+      - name: Read app version
+        run: |
+          python3 - <<'PY'
+          import re
+          v = "0.0.0"
+          with open("pubspec.yaml", "r", encoding="utf-8") as f:
+            for line in f:
+              if line.strip().startswith("version:"):
+                v = line.split(":", 1)[1].strip().split("+", 1)[0]
+                break
+          print("APP_VERSION=" + v)
+          with open("${GITHUB_ENV}", "a", encoding="utf-8") as env:
+            env.write("APP_VERSION=" + v + "\\n")
+          PY
+
+      - name: Pub get
+        run: flutter pub get
+
+      # 生成代码（如 Isar / build_runner），避免 CI 因缺少 *.g.dart 失败
+      - name: Build runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build macOS (Release)
+        if: runner.os == 'macOS'
+        run: flutter build macos --release
+
+      - name: Build Windows (Release)
+        if: runner.os == 'Windows'
+        run: flutter build windows --release
+
+      # ===== macOS：生成 DMG（可选：签名/公证）=====
+      # 如果你配置了签名/公证所需 secrets，会自动执行签名与 notarize；否则仅生成未签名 DMG（用于内测）。
+      - name: macOS Sign app (optional)
+        if: runner.os == 'macOS' && env.MACOS_CERT_P12_BASE64 != '' && env.MACOS_CERT_PASSWORD != '' && env.MACOS_SIGNING_IDENTITY != ''
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+          echo "$MACOS_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "temp" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "temp" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "temp" "$KEYCHAIN_PATH"
+
+          APP_DIR="build/macos/Build/Products/Release"
+          APP_NAME="$(ls "$APP_DIR" | grep -E '\\.app$' | head -n 1)"
+          codesign --force --deep --options runtime --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$APP_DIR/$APP_NAME"
+
+      - name: Create macOS DMG
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          APP_DIR="build/macos/Build/Products/Release"
+          APP_NAME="$(ls "$APP_DIR" | grep -E '\\.app$' | head -n 1)"
+          DMG_NAME="ChronoPlan-${APP_VERSION}-macos.dmg"
+          hdiutil create -volname "ChronoPlan" -srcfolder "$APP_DIR/$APP_NAME" -ov -format UDZO "$DMG_NAME"
+          ls -lah "$DMG_NAME"
+
+      - name: macOS Notarize DMG (optional)
+        if: runner.os == 'macOS' && env.APPLE_ID != '' && env.APPLE_TEAM_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != ''
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          DMG_NAME="ChronoPlan-${APP_VERSION}-macos.dmg"
+          xcrun notarytool submit "$DMG_NAME" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --wait
+          xcrun stapler staple "$DMG_NAME" || true
+
+      # ===== Windows：生成 Inno Setup 安装包 EXE =====
+      - name: Install Inno Setup
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
+
+      - name: Build Windows installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $src = "build\\windows\\x64\\runner\\Release"
+          if (!(Test-Path $src)) { throw "Release folder not found: $src" }
+          $exe = Get-ChildItem -Path $src -Filter *.exe | Select-Object -First 1
+          if ($null -eq $exe) { throw "No exe found in $src" }
+          $outDir = "$pwd\\dist"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $iscc = "${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe"
+          if (!(Test-Path $iscc)) { throw "ISCC not found: $iscc" }
+          & $iscc `
+            "/DAppVersion=$env:APP_VERSION" `
+            "/DAppExeName=$($exe.Name)" `
+            "/DSourceDir=$src" `
+            "/DOutputDir=$outDir" `
+            "packaging\\windows\\ChronoPlan.iss"
+          Get-ChildItem -Path $outDir | Format-List
+
+      - name: Upload artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChronoPlan-macOS
+          path: |
+            ChronoPlan-${{ env.APP_VERSION }}-macos.dmg
+          if-no-files-found: error
+
+      - name: Upload artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChronoPlan-Windows
+          path: |
+            dist/*.exe
+          if-no-files-found: error
+
+

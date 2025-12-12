@@ -1,0 +1,8 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    avoid_print: false  # Allow print for now
+    prefer_single_quotes: true
+    always_use_package_imports: false
+
