@@ -38,7 +38,11 @@ SolidCompression=yes
 WizardStyle=modern
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+; 说明：
+; - 部分 CI Runner 的 Inno Setup 安装不包含 ChineseSimplified.isl，导致编译失败
+; - 为保证 CI 稳定出包，这里默认使用 Inno Setup 自带的 Default.isl（英文）
+; 如需中文安装界面：可以在本仓库内自带 isl 文件后改为相对路径引用
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; GroupDescription: "附加任务"; Flags: unchecked
