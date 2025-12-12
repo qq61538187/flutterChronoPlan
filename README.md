@@ -32,10 +32,24 @@ ChronoPlan 是一个使用 **Flutter** 构建的个人效率桌面应用，提�
 - `lib/src/core`：路由、主题、数据库等
 
 ### 开发环境要求
-- Flutter **stable**（建议与你本地一致）
-- Dart（随 Flutter）
-- macOS：Xcode（用于 macOS 构建）
-- Windows：Visual Studio（C++ desktop workload，用于 Windows 构建）
+#### 通用
+- **Flutter（stable）**：建议与 CI 保持一致（当前 CI 使用 `3.38.3`）
+- **Dart**：随 Flutter 自带
+- **代码生成**：本项目使用 Isar / Riverpod 的生成代码，开发或打包前请运行：
+
+```bash
+dart run build_runner build --delete-conflicting-outputs
+```
+
+#### macOS（桌面端）
+- **macOS**：建议 macOS 13+（CI 使用 macOS 15）
+- **Xcode**：用于编译 macOS 桌面应用（`flutter build macos`）
+- **CocoaPods**：`flutter build macos` 会用到（Xcode 环境一般已包含/可安装）
+
+#### Windows（桌面端）
+- **Windows**：建议 Windows 10/11
+- **Visual Studio 2022**：安装 **Desktop development with C++**（MSVC、Windows SDK、CMake 工具链）
+- **CMake/Ninja**：通常随 VS 安装；用于构建 Windows Runner（`flutter build windows`）
 
 ### 本地运行（macOS）
 ```bash
