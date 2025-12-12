@@ -38,19 +38,21 @@ jobs:
       - name: Read app version
         shell: bash
         run: |
-          python3 - <<'PY'
-          import re
-          v = "0.0.0"
-          with open("pubspec.yaml", "r", encoding="utf-8") as f:
-            for line in f:
-              if line.strip().startswith("version:"):
-                v = line.split(":", 1)[1].strip().split("+", 1)[0]
-                break
-          print("APP_VERSION=" + v)
-          import os
-          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-            env.write("APP_VERSION=" + v + "\\n")
-          PY
+          set -euo pipefail
+          # 从 pubspec.yaml 读取 version:，并做清洗：
+          # - 去掉 build number（+ 后面的内容）
+          # - 去掉 Windows 可能带来的 \r
+          # - 仅保留 [0-9A-Za-z._-]，避免文件名/安装包名非法
+          raw="$(grep -E '^version:' pubspec.yaml | head -n 1 | sed 's/^version:[[:space:]]*//')"
+          ver="${raw%%+*}"
+          ver="$(printf '%s' "$ver" | tr -d '\r\n')"
+          ver="$(printf '%s' "$ver" | tr -cd '0-9A-Za-z._-')"
+          if [ -z "$ver" ]; then
+            echo "无法从 pubspec.yaml 解析 version:" >&2
+            exit 1
+          fi
+          echo "APP_VERSION=$ver"
+          echo "APP_VERSION=$ver" >> "$GITHUB_ENV"
 
       - name: Pub get
         run: flutter pub get
