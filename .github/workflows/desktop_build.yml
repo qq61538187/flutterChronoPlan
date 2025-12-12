@@ -142,17 +142,21 @@ jobs:
           $ErrorActionPreference = "Stop"
           $src = "build\\windows\\x64\\runner\\Release"
           if (!(Test-Path $src)) { throw "Release folder not found: $src" }
-          $exe = Get-ChildItem -Path $src -Filter *.exe | Select-Object -First 1
+          # Inno Setup 对相对路径的解析基于 .iss 所在目录，容易导致找不到文件；
+          # 这里强制转成绝对路径传给 ISCC。
+          $srcAbs = (Resolve-Path $src).Path
+          $exe = Get-ChildItem -Path $srcAbs -Filter *.exe | Select-Object -First 1
           if ($null -eq $exe) { throw "No exe found in $src" }
           $outDir = "$pwd\\dist"
           New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $outDirAbs = (Resolve-Path $outDir).Path
           $iscc = "${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe"
           if (!(Test-Path $iscc)) { throw "ISCC not found: $iscc" }
           & $iscc `
             "/DAppVersion=$env:APP_VERSION" `
             "/DAppExeName=$($exe.Name)" `
-            "/DSourceDir=$src" `
-            "/DOutputDir=$outDir" `
+            "/DSourceDir=$srcAbs" `
+            "/DOutputDir=$outDirAbs" `
             "packaging\\windows\\ChronoPlan.iss"
           Get-ChildItem -Path $outDir | Format-List
 
