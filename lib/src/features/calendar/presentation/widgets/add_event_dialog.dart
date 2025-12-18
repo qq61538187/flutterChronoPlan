@@ -66,12 +66,56 @@ class _AddEventDialogState extends ConsumerState<AddEventDialog> {
       
       if (event.lunarRecurrence != null) {
         _isLunar = true;
-        _recurrenceType = 'yearly';
-        // 如需回显农历规则，可在此解析 LUNAR 字符串
+        // 解析农历重复规则：格式 "LUNAR;MONTH=1;DAY=1" 或 "LUNAR;FREQ=MONTHLY;DAY=1"
+        final parts = event.lunarRecurrence!.split(';');
+        for (var part in parts) {
+          if (part.startsWith('MONTH=')) {
+            _selectedMonth = int.tryParse(part.split('=')[1]);
+          } else if (part.startsWith('DAY=')) {
+            _selectedDay = int.tryParse(part.split('=')[1]);
+          }
+        }
+        if (event.lunarRecurrence!.contains('FREQ=MONTHLY')) {
+          _recurrenceType = 'monthly';
+        } else {
+          _recurrenceType = 'yearly';
+        }
       } else if (event.recurrenceRule != null) {
-        if (event.recurrenceRule!.contains('FREQ=WEEKLY')) _recurrenceType = 'weekly';
-        else if (event.recurrenceRule!.contains('FREQ=MONTHLY')) _recurrenceType = 'monthly';
-        else if (event.recurrenceRule!.contains('FREQ=YEARLY')) _recurrenceType = 'yearly';
+        if (event.recurrenceRule!.contains('FREQ=WEEKLY')) {
+          _recurrenceType = 'weekly';
+          // 解析周几
+          final byDayMatch = RegExp(r'BYDAY=(\w+)').firstMatch(event.recurrenceRule!);
+          if (byDayMatch != null) {
+            final byDay = byDayMatch.group(1);
+            switch (byDay) {
+              case 'MO': _selectedWeekday = 1; break;
+              case 'TU': _selectedWeekday = 2; break;
+              case 'WE': _selectedWeekday = 3; break;
+              case 'TH': _selectedWeekday = 4; break;
+              case 'FR': _selectedWeekday = 5; break;
+              case 'SA': _selectedWeekday = 6; break;
+              case 'SU': _selectedWeekday = 7; break;
+            }
+          }
+        } else if (event.recurrenceRule!.contains('FREQ=MONTHLY')) {
+          _recurrenceType = 'monthly';
+          // 解析日期
+          final byMonthDayMatch = RegExp(r'BYMONTHDAY=(\d+)').firstMatch(event.recurrenceRule!);
+          if (byMonthDayMatch != null) {
+            _selectedDay = int.tryParse(byMonthDayMatch.group(1)!);
+          }
+        } else if (event.recurrenceRule!.contains('FREQ=YEARLY')) {
+          _recurrenceType = 'yearly';
+          // 解析月份和日期
+          final byMonthMatch = RegExp(r'BYMONTH=(\d+)').firstMatch(event.recurrenceRule!);
+          final byMonthDayMatch = RegExp(r'BYMONTHDAY=(\d+)').firstMatch(event.recurrenceRule!);
+          if (byMonthMatch != null) {
+            _selectedMonth = int.tryParse(byMonthMatch.group(1)!);
+          }
+          if (byMonthDayMatch != null) {
+            _selectedDay = int.tryParse(byMonthDayMatch.group(1)!);
+          }
+        }
       }
     } else {
       // 默认：开始 00:00，结束 23:59（只记录小时和分钟）
