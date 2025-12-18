@@ -438,18 +438,37 @@ class EventRepository {
     }
   }
 
-  Future<List<EventModel>> searchEvents(String query) async {
-    if (query.isEmpty) return [];
+  Future<List<EventModel>> searchEvents(String query, {Set<String>? categories}) async {
     final isar = await db;
-    return await isar.eventModels
-        .filter()
-        .titleContains(query, caseSensitive: false)
-        .or()
-        .descriptionContains(query, caseSensitive: false)
-        .or()
-        .locationContains(query, caseSensitive: false)
-        .sortByStartTime()
-        .findAll();
+    
+    List<EventModel> allResults;
+    
+    if (query.isEmpty) {
+      // 查询为空时，返回所有事件
+      allResults = await isar.eventModels.where().findAll();
+    } else {
+      // 先获取所有匹配关键词的结果
+      allResults = await isar.eventModels
+          .filter()
+          .titleContains(query, caseSensitive: false)
+          .or()
+          .descriptionContains(query, caseSensitive: false)
+          .or()
+          .locationContains(query, caseSensitive: false)
+          .findAll();
+    }
+    
+    // 如果指定了分类筛选，过滤结果
+    if (categories != null && categories.isNotEmpty) {
+      final filtered = allResults
+          .where((event) => categories.contains(event.category))
+          .toList();
+      filtered.sort((a, b) => a.startTime.compareTo(b.startTime));
+      return filtered;
+    }
+    
+    allResults.sort((a, b) => a.startTime.compareTo(b.startTime));
+    return allResults;
   }
 
   Future<List<EventModel>> getAllEvents() async {

@@ -9,8 +9,13 @@ import 'add_event_dialog.dart';
 
 class EventListItem extends ConsumerWidget {
   final EventModel event;
+  final VoidCallback? onCompletionChanged;
 
-  const EventListItem({super.key, required this.event});
+  const EventListItem({
+    super.key, 
+    required this.event,
+    this.onCompletionChanged,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -158,9 +163,11 @@ class EventListItem extends ConsumerWidget {
                         value: event.isCompleted,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         activeColor: categoryColor,
-                        onChanged: (val) {
+                        onChanged: (val) async {
                            final updatedEvent = event..isCompleted = val ?? false;
-                           ref.read(eventRepositoryProvider).updateEvent(updatedEvent);
+                           await ref.read(eventRepositoryProvider).updateEvent(updatedEvent);
+                           // 如果提供了回调，调用它来刷新搜索结果
+                           onCompletionChanged?.call();
                         },
                       ),
                     ),

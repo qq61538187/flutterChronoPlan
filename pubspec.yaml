@@ -1,7 +1,7 @@
 name: chrono_plan
 description: ChronoPlan：一个面向个人的日历日程/待办管理桌面应用（Flutter + Riverpod + Isar），支持重复规则、农历展示、分类管理、数据导入导出与全局搜索。
 publish_to: 'none'
-version: 0.1.0
+version: 0.1.1
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
