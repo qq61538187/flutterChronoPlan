@@ -78,7 +78,7 @@ class _AddEventDialogState extends ConsumerState<AddEventDialog> {
         if (event.lunarRecurrence!.contains('FREQ=MONTHLY')) {
           _recurrenceType = 'monthly';
         } else {
-          _recurrenceType = 'yearly';
+        _recurrenceType = 'yearly';
         }
       } else if (event.recurrenceRule != null) {
         if (event.recurrenceRule!.contains('FREQ=WEEKLY')) {

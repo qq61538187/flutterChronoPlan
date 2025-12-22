@@ -449,13 +449,13 @@ class EventRepository {
     } else {
       // 先获取所有匹配关键词的结果
       allResults = await isar.eventModels
-          .filter()
-          .titleContains(query, caseSensitive: false)
-          .or()
-          .descriptionContains(query, caseSensitive: false)
-          .or()
-          .locationContains(query, caseSensitive: false)
-          .findAll();
+        .filter()
+        .titleContains(query, caseSensitive: false)
+        .or()
+        .descriptionContains(query, caseSensitive: false)
+        .or()
+        .locationContains(query, caseSensitive: false)
+        .findAll();
     }
     
     // 如果指定了分类筛选，过滤结果

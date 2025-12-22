@@ -52,35 +52,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ],
             ),
-            child: Column(
-              children: [
+        child: Column(
+          children: [
                 // 搜索输入框
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: '搜索日程或待办...',
-                    prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+            TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: '搜索日程或待办...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                     filled: true,
                     fillColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              ref.read(searchQueryProvider.notifier).state = '';
-                            },
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    ref.read(searchQueryProvider.notifier).state = '';
+                  },
                           )
                         : null,
-                  ),
-                  onChanged: (value) {
-                    ref.read(searchQueryProvider.notifier).state = value;
+              ),
+              onChanged: (value) {
+                ref.read(searchQueryProvider.notifier).state = value;
                     setState(() {}); // 更新清除按钮显示
-                  },
-                ),
+              },
+            ),
                 const SizedBox(height: 12),
                 // 筛选器卡片（可折叠）
                 Card(
@@ -328,7 +328,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
           // 搜索结果区域
-          Expanded(
+            Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: searchResultsAsync.when(
@@ -361,9 +361,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (err, stack) => Center(child: Text('Error: $err')),
               ),
+              ),
             ),
-          ),
-        ],
+          ],
       ),
     );
   }
